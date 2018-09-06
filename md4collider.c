@@ -10,10 +10,10 @@
 #define LROT(x, n) ((x << n) | (x >> (32 - n)))
 #define RROT(x, n) ((x >> n) | (x << (32 - n)))
 
-#define PHI0(a, b, c, d, m, s) (LROT(((a + F(b, c, d) + m) & 0xffffffff), s))
-#define INV0(x, a, b, c, d, s) ((RROT(x, s) - a - F(b, c, d)) & 0xffffffff)
-#define PHI1(a, b, c, d, m, s) (LROT(((a + G(b, c, d) + m + 0x5a827999) & 0xffffffff), s))
-#define INV1(x, a, b, c, d, s) ((RROT(x, s) - a - G(b, c, d) - 0x5a827999) & 0xffffffff)
+#define PHI0(a, b, c, d, m, s) (LROT(((a + F(b, c, d) + m) & 0xffffffffu), s))
+#define INV0(x, a, b, c, d, s) ((RROT(x, s) - a - F(b, c, d)) & 0xffffffffu)
+#define PHI1(a, b, c, d, m, s) (LROT(((a + G(b, c, d) + m + 0x5a827999u) & 0xffffffffu), s))
+#define INV1(x, a, b, c, d, s) ((RROT(x, s) - a - G(b, c, d) - 0x5a827999u) & 0xffffffffu)
 
 #define SET(x, i) (x | (1u << (i - 1)))
 #define CLR(x, i) (x & ~((1u << (i - 1))))
@@ -21,7 +21,7 @@
 
 #define MD4_WORDS 16
 
-const uint32_t IV[4] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476};
+const uint32_t IV[4] = {0x67452301u, 0xefcdab89u, 0x98badcfeu, 0x10325476u};
 
 
 void setConstraints(uint32_t * m) {
@@ -272,9 +272,9 @@ int main(int argc, char * argv[]) {
 
     uint32_t m_[MD4_WORDS];
     memcpy(m_, m, MD4_WORDS * sizeof(uint32_t));
-    m_[1] = (m_[1] + (1u << 31)) & 0xffffffff;
-    m_[2] = (m_[2] + ((1u << 31) - (1u << 28))) & 0xffffffff;
-    m_[12] = (m_[12] - (1u << 16)) & 0xffffffff;
+    m_[1] = (m_[1] + (1u << 31)) & 0xffffffffu;
+    m_[2] = (m_[2] + ((1u << 31) - (1u << 28))) & 0xffffffffu;
+    m_[12] = (m_[12] - (1u << 16)) & 0xffffffffu;
 
     printf("M = ");
     printBlocks(m);
