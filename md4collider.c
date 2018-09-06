@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #define F(x, y ,z) ((x & y) | (~x & z))
 #define G(x, y, z) ((x & y) | (x & z) | (y & z))
@@ -11,7 +12,7 @@
 
 #define PHI0(a, b, c, d, m, s) (LROT(((a + F(b, c, d) + m) & 0xffffffff), s))
 #define INV0(x, a, b, c, d, s) ((RROT(x, s) - a - F(b, c, d)) & 0xffffffff)
-#define PHI1(a, b, c, d, m, s) (LROT(((a + G(b, c, d) + mk + 0x5a827999) & 0xffffffff), s))
+#define PHI1(a, b, c, d, m, s) (LROT(((a + G(b, c, d) + m + 0x5a827999) & 0xffffffff), s))
 #define INV1(x, a, b, c, d, s) ((RROT(x, s) - a - G(b, c, d) - 0x5a827999) & 0xffffffff)
 
 #define SET(x, i) (x | (1u << (i - 1)))
@@ -24,11 +25,10 @@ const uint32_t IV[4] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476};
 
 
 void setConstraints(uint32_t * m) {
-    uint32_t a = IV[0];
-    uint32_t b = IV[1];
-    uint32_t c = IV[2];
-    uint32_t d = IV[3];
-    uint32_t x;
+    uint32_t a0 = IV[0], b0 = IV[1], c0 = IV[2], d0 = IV[3];
+    uint32_t a = a0, b = b0, c = c0, d = d0;
+    // we need to track the chaining values below for multi message corrections
+    uint32_t a2, a3, b1, b2, c1, c2, d1, d2, x;
 
     // ROUND 1 STEP 1
     x = a;
@@ -43,6 +43,7 @@ void setConstraints(uint32_t * m) {
     d = EQ(d, a, 8);
     d = EQ(d, a, 11);
     m[1] = INV0(d, x, a, b, c, 7);
+    d1 = d;
 
     // ROUND 1 STEP 3
     x = c;
@@ -52,6 +53,7 @@ void setConstraints(uint32_t * m) {
     c = CLR(c, 11);
     c = EQ(c, d, 26);
     m[2] = INV0(c, x, d, a, b, 11);
+    c1 = c;
 
     // ROUND 1 STEP 4
     x = b;
@@ -61,6 +63,7 @@ void setConstraints(uint32_t * m) {
     b = CLR(b, 11);
     b = CLR(b, 26);
     m[3] = INV0(b, x, c, d, a, 19);
+    b1 = b;
 
     // ROUND 1 STEP 5
     x = a;
@@ -70,6 +73,7 @@ void setConstraints(uint32_t * m) {
     a = CLR(a, 26);
     a = EQ(a, b, 14);
     m[4] = INV0(a, x, b, c, d, 3);
+    a2 = a;
 
     // ROUND 1 STEP 6
     x = d;
@@ -81,6 +85,7 @@ void setConstraints(uint32_t * m) {
     d = EQ(d, a, 22);
     d = SET(d, 26);
     m[5] = INV0(d, x, a, b, c, 7);
+    d2 = d;
 
     // ROUND 1 STEP 7
     x = c;
@@ -93,6 +98,7 @@ void setConstraints(uint32_t * m) {
     c = SET(c, 21);
     c = CLR(c, 22);
     m[6] = INV0(c, x, d, a, b, 11);
+    c2 = c;
 
     // ROUND 1 STEP 8
     x = b;
@@ -106,6 +112,7 @@ void setConstraints(uint32_t * m) {
     b = CLR(b, 21);
     b = CLR(b, 22);
     m[7] = INV0(b, x, c, d, a, 19);
+    b2 = b;
 
     // ROUND 1 STEP 9
     x = a;
@@ -121,6 +128,7 @@ void setConstraints(uint32_t * m) {
     a = SET(a, 22);
     a = EQ(a, b, 26);
     m[8] = INV0(a, x, b, c, d, 3);
+    a3 = a;
 
     // ROUND 1 STEP 10
     x = d;
@@ -204,6 +212,38 @@ void setConstraints(uint32_t * m) {
     b = SET(b, 29);
     b = CLR(b, 30);
     m[15] = INV0(b, x, c, d, a, 19);
+
+    // ROUND 2 STEP 17
+    x = a;
+    a = PHI1(a, b, c, d, m[0], 3);
+    a = EQ(a, c, 19);
+    a = SET(a, 26);
+    a = CLR(a, 27);
+    a = SET(a, 29);
+    a = SET(a, 32);
+    m[0] = INV1(a, x, b, c, d, 3);
+    // multi message correction
+    uint32_t a1 = PHI0(a0, b0, c0, d0, m[0], 3);
+    m[1] = INV0(d1, d0, a1, b0, c0, 7);
+    m[2] = INV0(c1, c0, d1, a1, b0, 11);
+    m[3] = INV0(b1, b0, c1, d1, a1, 19);
+    m[4] = INV0(a2, a1, b1, c1, d1, 3);
+
+    // ROUND 2 STEP 18
+    x = d;
+    d = PHI1(d, a, b, c, m[4], 5);
+    d = EQ(d, a, 19);
+    d = EQ(d, b, 26);
+    d = EQ(d, b, 27);
+    d = EQ(d, b, 29);
+    d = EQ(d, b, 32);
+    m[4] = INV1(d, x, a, b, c, 5);
+    // multi message correction
+    a2 = PHI0(a1, b1, c1, d1, m[4], 3);
+    m[5] = INV0(d2, d1, a2, b1, c1, 7);
+    m[6] = INV0(c2, c1, d2, a2, b1, 11);
+    m[7] = INV0(b2, b1, c2, d2, a2, 19);
+    m[8] = INV0(a3, a2, b2, c2, d2, 3);
 }
 
 void randomBlocks(uint32_t * m) {
@@ -223,6 +263,7 @@ void printBlocks(uint32_t * m) {
 }
 
 int main(int argc, char * argv[]) {
+    srand(time(0));
     uint32_t m[MD4_WORDS] = {0};
 
     randomBlocks(m);
